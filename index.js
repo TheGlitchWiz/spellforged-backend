@@ -31,23 +31,33 @@ app.post("/api/generate", upload.array("images", 2), async (req, res) => {
   }
 
   const [img1, img2] = req.files;
-  const outputPath = `videos/video_${Date.now()}.mp4`;
+  const outputDir = path.join(__dirname, 'videos');
+  const outputPath = path.join(outputDir, `video_${Date.now()}.mp4`);
 
   // Ensure output directory exists
-  fs.mkdirSync("videos", { recursive: true });
+  fs.mkdirSync(outputDir, { recursive: true });
 
-  // Generate simple video with FFmpeg
-  const command = `ffmpeg -loop 1 -t 1 -i ${img1.path} -loop 1 -t 1 -i ${img2.path} -filter_complex "[0:v][1:v]concat=n=2:v=1[outv]" -map "[outv]" -y ${outputPath}`;
+  // FFmpeg command
+  const command = `ffmpeg -y -loop 1 -t 1 -i ${img1.path} -loop 1 -t 1 -i ${img2.path} -filter_complex "[0:v][1:v]concat=n=2:v=1[outv]" -map "[outv]" ${outputPath}`;
 
-  exec(command, (err) => {
-    fs.unlinkSync(img1.path);
-    fs.unlinkSync(img2.path);
+  console.log("Running FFmpeg command:", command);
 
-    if (err) {
-      console.error("FFmpeg error:", err);
-      return res.status(500).json({ error: "Video generation failed." });
+  exec(command, (err, stdout, stderr) => {
+    // Cleanup temp uploads regardless of success
+    try {
+      fs.unlinkSync(img1.path);
+      fs.unlinkSync(img2.path);
+    } catch (cleanupErr) {
+      console.warn("Cleanup error:", cleanupErr.message);
     }
 
+    if (err) {
+      console.error("FFmpeg error:", err.message);
+      console.error("STDERR:", stderr);
+      return res.status(500).json({ error: "Video generation failed. Check server logs." });
+    }
+
+    console.log("FFmpeg success, video saved to:", outputPath);
     const videoUrl = `/videos/${path.basename(outputPath)}`;
     res.json({ videoUrl });
   });
@@ -55,5 +65,5 @@ app.post("/api/generate", upload.array("images", 2), async (req, res) => {
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`✅ Server running on port ${port}`);
 });
