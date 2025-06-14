@@ -15,7 +15,7 @@ const port = process.env.PORT || 8080;
 
 // Enable CORS for frontend domain
 app.use(cors({
-  origin: "https://www.spellforgedmatrixsponge.com"
+  origin: ["https://www.spellforgedmatrixsponge.com", "https://spellforgedmatrixsponge.com"]
 }));
 
 // Serve generated videos
